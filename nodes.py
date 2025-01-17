@@ -13,7 +13,7 @@ from PIL import Image
 import os
 import numpy as np
 
-class SaveImageJPGNoMeta(SaveImage):
+class SaveJPGLAI(SaveImage):
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -44,9 +44,9 @@ class SaveImageJPGNoMeta(SaveImage):
         
 # Export node
 NODE_CLASS_MAPPINGS = {
-    "SaveImageJPGNoMeta": SaveImageJPGNoMeta,
+    "SaveJPGLAI": SaveImageJPGNoMeta,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "SaveImageJPGNoMeta": "Save Image JPG No Meta",
+    "SaveJPGLAI": "Save Image JPG No Meta",
 }
