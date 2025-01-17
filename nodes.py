@@ -9,11 +9,7 @@ from folder_paths import get_filename_list # type: ignore
 import comfy
 import os
 
-from PIL import Image
-import os
-import numpy as np
-
-class SaveJPGLAI(SaveImage):
+class _JPGLAI(SaveImage):
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -41,12 +37,12 @@ class SaveJPGLAI(SaveImage):
         img.save(file_path, "JPEG", quality=quality, optimize=True)
         
         return {"ui": {"images": [{"filename": filename}]}}
-        
+
 # Export node
 NODE_CLASS_MAPPINGS = {
-    "SaveJPGLAI": SaveImageJPGNoMeta,
+    "_JPGLAI": _JPGLAI,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "SaveJPGLAI": "Save Image JPG No Meta",
+    "_JPGLAI": "Save Image JPG API No Meta",
 }
