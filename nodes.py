@@ -9,149 +9,44 @@ from folder_paths import get_filename_list # type: ignore
 import comfy
 import os
 
-class ControlNetSelector:
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "control_net_name": (get_filename_list("controlnet"),)
-            }
-        }
-    
-    RETURN_TYPES = (folder_paths.get_filename_list("controlnet"), )
-    RETURN_NAMES = ("control_net_name",)
-    FUNCTION = "get_control_net_name"
-    
-    CATEGORY = 'Uber Comfy'
-
-    def get_control_net_name(self, control_net_name):
-        return (control_net_name,)
-
-class ControlNetOptionalLoader:
-    @classmethod
-    def INPUT_TYPES(s):
-        # Extending the file list with a 'None' option for manual selection
-        return {"required": { "control_net_name": (["None"] + folder_paths.get_filename_list("controlnet"), )}}
-
-    RETURN_TYPES = ("CONTROL_NET",)
-    FUNCTION = "load_controlnet"
-
-    CATEGORY = "Uber Comfy"
-
-    def load_controlnet(self, control_net_name):
-        # Only proceed if a control_net_name is provided and it is not 'None'
-        if control_net_name and control_net_name != "None":
-            controlnet_path = folder_paths.get_full_path("controlnet", control_net_name)
-            controlnet = comfy.controlnet.load_controlnet(controlnet_path)
-            return (controlnet,)
-        # Return None or skip the operation if 'None' is selected or no input is provided
-        return (None,)
-
-class DiffusersSelector:
-    CATEGORY = 'Uber Comfy'
-    RETURN_TYPES = (folder_paths.get_folder_paths("diffusers"), )
-    RETURN_NAMES = ("model_path",)
-    FUNCTION = "select_model_path"
-
-    @classmethod
-    def INPUT_TYPES(cls):
-        paths = []
-        for search_path in folder_paths.get_folder_paths("diffusers"):
-            if os.path.exists(search_path):
-                for root, subdirs, files in os.walk(search_path, followlinks=True):
-                    if "model_index.json" in files:
-                        paths.append(os.path.relpath(root, start=search_path))
-        return {"required": {"model_path": (paths,), }}
-
-    def select_model_path(self, model_path):
-        # This function simply returns the model path that was selected
-        return (model_path,)
+from PIL import Image
+import os
+import numpy as np
 
 class SaveImageJPGNoMeta(SaveImage):
     @classmethod
     def INPUT_TYPES(s):
-        output = {
-            "required": {
-                "images": ("IMAGE",),
-                "filename_prefix": ("STRING", {"default": "ComfyUI"}),
-                "quality": ("INT", {"default": 100, "min": 1, "max": 100, "step": 1}),
-            },
-        }
-
-        return output
-
-    CATEGORY = "Uber Comfy"
-    RETURN_TYPES = ()
-    FUNCTION = "suplex_save_images"
-
-    def suplex_save_images(
-        self,
-        images,
-        filename_prefix="ComfyUI",
-        format="jpeg",
-        quality=92,
-    ):
-        filename_prefix += self.prefix_append
-        full_output_folder, filename, counter, subfolder, filename_prefix = (
-            folder_paths.get_save_image_path(
-                filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0]
-            )
-        )
-        results = list()
-        for batch_number, image in enumerate(images):
-            i = 255.0 * image.cpu().numpy()
-            img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
-            filename_with_batch_num = filename.replace("%batch_num%", str(batch_number))
-            file = f"{filename_with_batch_num}_{counter:05}_.{format}"
-            results.append(
-                {"filename": file, "subfolder": subfolder, "type": self.type}
-            )
-            counter += 1
-        
-        img.save(os.path.join(full_output_folder, file), quality=quality, optimize=True)
-        return {"ui": {"images": results}}
-
-class MultiInputVariableRewrite:
-    @classmethod
-    def INPUT_TYPES(cls):
         return {
             "required": {
-                "text": ("STRING", {"multiline": True}),
+                "images": ("IMAGE",),  # Input image
+                "filename": ("STRING", {"default": "image.jpg"}),  # Input for filename
+                "quality": ("INT", {"default": 92, "min": 1, "max": 100, "step": 1}),  # Quality slider
             },
-            "optional": {
-                "a": ("STRING", {"forceInput": True}),
-                "b": ("STRING", {"forceInput": True}),
-                "c": ("STRING", {"forceInput": True}),
-                "d": ("STRING", {"forceInput": True}),
-                "e": ("STRING", {"forceInput": True}),
-                # ... add more up to 'z' if needed
-            }
         }
-   
-    CATEGORY = "Uber Comfy"
-    FUNCTION = "multicombinetext"
-    RETURN_NAMES = ("TEXT",)
-    RETURN_TYPES = ("STRING",)
 
-    def multicombinetext(self, text="", **kwargs):
-        for key, value in kwargs.items():
-            if value:
-                text = text.replace(f"{{{key}}}", value)
-        return (text,)
+    CATEGORY = "_JPG - LAI"
+    RETURN_TYPES = ()
+    FUNCTION = "save_image"
 
+    def save_image(self, images, filename="image.jpg", quality=92):
+        # Convert image tensor to numpy array and then to PIL Image
+        img = Image.fromarray(np.clip(255.0 * images[0].cpu().numpy(), 0, 255).astype(np.uint8))
+        
+        # Ensure the filename has the correct extension
+        if not filename.lower().endswith(".jpg"):
+            filename = f"{filename}.jpg"
+        
+        # Save the image with the provided filename and quality
+        file_path = os.path.join(self.output_dir, filename)
+        img.save(file_path, "JPEG", quality=quality, optimize=True)
+        
+        return {"ui": {"images": [{"filename": filename}]}}
+        
 # Export node
 NODE_CLASS_MAPPINGS = {
-    "ControlNet Selector": ControlNetSelector,
-    "ControlNetOptionalLoader": ControlNetOptionalLoader,
-    "DiffusersSelector": DiffusersSelector,
     "SaveImageJPGNoMeta": SaveImageJPGNoMeta,
-    "MultiInputVariableRewrite": MultiInputVariableRewrite,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "ControlNet Selector": "ControlNet Selector",
-    "ControlNetOptionalLoader": "Load Optional ControlNet Model",
-    "DiffusersSelector": "Diffusers Selector",
     "SaveImageJPGNoMeta": "Save Image JPG No Meta",
-    "MultiInputVariableRewrite": "Multi Input Variable Rewrite",
 }
